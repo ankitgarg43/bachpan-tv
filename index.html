@@ -222,7 +222,7 @@ let vol=parseInt(qs.get('v'),10); if(isNaN(vol)||vol<0||vol>100) vol=80;
 /* effective episode count for THIS channel: hard-coded, or corrected once via &n= (see tuneOnce) */
 let effCount=parseInt(qs.get('n'),10); if(isNaN(effCount)||effCount<5) effCount=CHANNELS[ch].count;
 
-let player=null, playerReady=false, isOn=false, osdTimer=null, staticTimer=null, soundBlocked=false, retuned=false;
+let player=null, playerReady=false, isOn=false, osdTimer=null, staticTimer=null, soundBlocked=false, retuned=false, slotTimer=null;
 
 function navUrl(mut){ const u=new URL(location.href); mut(u.searchParams); return u.toString(); }
 function goOn(){ location.assign(navUrl(p=>{ p.set('ch',ch); p.set('on','1'); p.set('v',vol); p.delete('n'); })); }
@@ -262,6 +262,26 @@ function osdVolume(){
   showOSD('VOLUME<br><span class="volbar">'+'▮'.repeat(blocks)+'▯'.repeat(10-blocks)+'</span>', 1400);
 }
 
+
+/* ---------- v1.3: slot-boundary re-tune ----------
+   YouTube advances a playlist in its RAW order. For the newest-first StarPlus
+   lists that means episodes drift BACKWARD after each episode ends, and for all
+   channels real episode lengths drift away from the schedule over time.
+   Fix: never trust auto-advance. When the current schedule slot ends, re-tune
+   in place to whatever episode the live schedule says is on then. */
+function retune(){
+  if(!isOn || !playerReady) return;
+  const c=CHANNELS[ch], s=syncPos(c, effCount);
+  showStatic(600);
+  try{ player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset}); player.setVolume(vol); player.playVideo(); armSlotTimer(c, s); }catch(_){}
+  armSlotTimer(c, s);
+}
+function armSlotTimer(c, s){
+  clearTimeout(slotTimer);
+  const ms=Math.max(5000, (c.slotSec - s.offset) * 1000 + 1500);
+  slotTimer=setTimeout(retune, ms);
+}
+
 /* ---------- tuning: runs ONCE per page load, for THIS page's channel only ---------- */
 function tuneOnce(){
   if(!playerReady || !isOn) return;
@@ -269,6 +289,7 @@ function tuneOnce(){
   showStatic(850); osdChannel();
   player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset, suggestedQuality:'default'});
   player.setVolume(vol); player.unMute(); player.playVideo();
+  armSlotTimer(c, s);
   /* if the browser blocked sound after the refresh, one tap anywhere fixes it */
   setTimeout(()=>{
     if(!isOn) return;
@@ -351,7 +372,7 @@ window.onYouTubeIframeAPIReady=function(){
           retuned=true; setTimeout(()=>retuned=false, 5000);
           const c=CHANNELS[ch], s=syncPos(c, effCount);
           showStatic(600);
-          try{ player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset}); player.setVolume(vol); player.playVideo(); }catch(_){}
+          try{ player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset}); player.setVolume(vol); player.playVideo(); armSlotTimer(c, s); }catch(_){}
         }
         /* if YouTube ever pauses (buffering stall etc.), a TV doesn't stay paused */
         if(e.data===YT.PlayerState.PAUSED && isOn && !soundBlocked){ setTimeout(()=>{ if(isOn && !soundBlocked){ try{player.playVideo();}catch(_){}} }, 600); }
