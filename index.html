@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bachpan TV — Purane Shows, Live TV Style | Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan, Son Pari</title>
+<meta name="description" content="An old-style CRT TV on the web. Turn it on and classic Indian shows play live, channel by channel: Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan and Son Pari — streamed from official YouTube channels. No login, no episodes to pick. Just power, channel and volume.">
+<link rel="canonical" href="https://ankitgarg43.github.io/bachpan-tv/">
+<meta name="theme-color" content="#17100b">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Bachpan TV — Purane Shows, Live TV Style">
+<meta property="og:description" content="Turn on the TV. Flip the channel. Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan, Son Pari — playing live, like the old days.">
+<meta property="og:url" content="https://ankitgarg43.github.io/bachpan-tv/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Bachpan TV — Purane Shows, Live TV Style">
+<meta name="twitter:description" content="A 90s CRT TV in your browser. Only 3 controls: power, channel, volume. Classic Indian shows, streamed live from official YouTube channels.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root{
+    --room1:#241a12; --room2:#0d0906;
+    --cab1:#6b4423; --cab2:#4a2c14; --cab3:#33200e;
+    --panel:#241608; --cream:#f3e2b8; --amber:#ffb43a;
+    --led:#ff3b30; --osd:#7dff8a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:18px 12px 26px;
+    background:radial-gradient(120% 90% at 50% 20%, var(--room1) 0%, var(--room2) 70%);
+    font-family:Georgia,'Times New Roman',serif; color:var(--cream);
+    overflow-x:hidden;
+  }
+  header{text-align:center; user-select:none;}
+  header h1{margin:0; font-size:clamp(22px,5vw,34px); letter-spacing:2px; color:var(--amber); text-shadow:0 2px 0 #000, 0 0 22px rgba(255,180,58,.25); font-variant:small-caps;}
+  header p{margin:3px 0 0; font-size:clamp(12px,3vw,14px); opacity:.75; font-style:italic;}
+
+  /* ---------- TV cabinet ---------- */
+  .tv{
+    width:min(96vw,880px);
+    background:linear-gradient(160deg, var(--cab1) 0%, var(--cab2) 55%, var(--cab3) 100%);
+    border-radius:26px; padding:clamp(12px,3vw,26px);
+    box-shadow:0 30px 60px rgba(0,0,0,.75), inset 0 2px 3px rgba(255,220,160,.35), inset 0 -6px 14px rgba(0,0,0,.55);
+    border:1px solid #1c1005;
+  }
+  .tv-inner{display:flex; gap:clamp(10px,2.5vw,20px); align-items:stretch;}
+  @media (max-width:640px){ .tv-inner{flex-direction:column;} }
+
+  /* ---------- Screen ---------- */
+  .screen-bezel{
+    flex:1 1 auto; background:#0a0a0a; border-radius:22px; padding:clamp(8px,2vw,14px);
+    box-shadow:inset 0 0 0 2px #2b2b2b, inset 0 4px 18px #000;
+  }
+  .screen{
+    position:relative; aspect-ratio:4/3; width:100%; border-radius:38px/34px; overflow:hidden;
+    background:radial-gradient(90% 90% at 50% 45%, #232323 0%, #050505 75%);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.9);
+  }
+  .screen iframe, .screen #player{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  /* glass + scanlines + vignette */
+  .screen .glass{
+    position:absolute; inset:0; pointer-events:none; z-index:5;
+    background:
+      linear-gradient(115deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.03) 28%, transparent 45%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+    box-shadow:inset 0 0 90px rgba(0,0,0,.55);
+  }
+  /* click shield: the picture can never be clicked = no pause, no YouTube links */
+  .screen .shield{position:absolute; inset:0; z-index:6;}
+  #staticCanvas{position:absolute; inset:0; width:100%; height:100%; z-index:7; opacity:0; pointer-events:none; transition:opacity .08s;}
+  .screen.on #staticCanvas.show{opacity:.92;}
+  /* CRT power-on flash */
+  .crt-flash{position:absolute; inset:0; z-index:8; background:#fff; opacity:0; pointer-events:none;}
+  .crt-flash.go{animation:crtOn .38s steps(12) 1;}
+  @keyframes crtOn{0%{opacity:0; transform:scaleY(.004);}35%{opacity:.95; transform:scaleY(.01);}70%{opacity:.5; transform:scaleY(1);}100%{opacity:0; transform:scaleY(1);}}
+  /* OSD */
+  .osd{
+    position:absolute; top:6%; right:7%; z-index:9; pointer-events:none;
+    font-family:'Courier New',monospace; font-weight:bold; color:var(--osd);
+    text-shadow:0 0 6px rgba(80,255,110,.8), 2px 2px 0 rgba(0,0,0,.6);
+    font-size:clamp(18px,4.5vw,30px); text-align:right; opacity:0; transition:opacity .25s; line-height:1.25;
+  }
+  .osd.show{opacity:1;}
+  .osd .volbar{font-size:.72em; letter-spacing:2px; white-space:nowrap;}
+  .offmsg{
+    position:absolute; inset:0; z-index:4; display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,.14); font-family:'Courier New',monospace; letter-spacing:3px; font-size:clamp(12px,3vw,16px);
+    text-align:center; padding:0 20px; user-select:none;
+  }
+  .screen.on .offmsg{display:none;}
+
+  /* ---------- Side panel: speaker + ONLY 3 controls ---------- */
+  .panel{
+    flex:0 0 clamp(120px,22%,168px); display:flex; flex-direction:column; gap:12px;
+    background:linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.45));
+    border-radius:14px; padding:12px 10px; box-shadow:inset 0 1px 0 rgba(255,220,160,.18);
+  }
+  @media (max-width:640px){ .panel{flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center;} }
+  .speaker{
+    flex:1 1 auto; min-height:74px; border-radius:10px; opacity:.9;
+    background:repeating-linear-gradient(0deg, #170d04 0 3px, #3a2410 3px 6px);
+    box-shadow:inset 0 2px 8px #000;
+  }
+  @media (max-width:640px){ .speaker{display:none;} }
+  .brandplate{
+    text-align:center; font-size:11px; letter-spacing:3px; color:var(--amber);
+    border:1px solid rgba(255,180,58,.4); border-radius:6px; padding:4px 2px; user-select:none; white-space:nowrap;
+  }
+  .ledrow{display:flex; align-items:center; justify-content:center; gap:7px; font-size:10px; letter-spacing:2px; color:#cfa96a; user-select:none;}
+  .led{width:10px; height:10px; border-radius:50%; background:#3a0d0a; box-shadow:inset 0 1px 2px #000;}
+  .led.on{background:var(--led); box-shadow:0 0 10px var(--led), inset 0 0 3px #fff3;}
+  .ctl{display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .ctl .lbl{font-size:10px; letter-spacing:2.5px; color:#e8cf9e; user-select:none;}
+  .rocker{display:flex; border-radius:10px; overflow:hidden; box-shadow:0 3px 0 #140a02, 0 5px 10px rgba(0,0,0,.6);}
+  .rocker button, .powerbtn{
+    appearance:none; border:0; cursor:pointer; color:var(--cream);
+    background:linear-gradient(180deg,#54401f,#38250f);
+    font-family:inherit; font-size:19px; padding:10px 14px; min-width:52px; min-height:48px;
+  }
+  .rocker button:active, .powerbtn:active{transform:translateY(2px); filter:brightness(1.25);}
+  .rocker button:focus-visible, .powerbtn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .rocker button + button{border-left:1px solid #170d04;}
+  .powerbtn{border-radius:50%; width:58px; height:58px; min-width:58px; font-size:21px; box-shadow:0 3px 0 #140a02, 0 5px 12px rgba(0,0,0,.6); padding:0;}
+  .powerbtn.on{color:#ffb0a8;}
+  .guide{
+    width:min(96vw,880px); text-align:center; font-size:clamp(12.5px,3vw,14.5px); line-height:1.65; opacity:.88; user-select:none;
+  }
+  .guide b{color:var(--amber); font-weight:normal; letter-spacing:.4px;}
+  footer{font-size:11.5px; opacity:.55; text-align:center; max-width:640px; line-height:1.6; user-select:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📺 Bachpan TV</h1>
+  <p>purane shows, purana style — bas TV on karo aur dekho</p>
+</header>
+
+<div class="tv" role="region" aria-label="Retro television">
+  <div class="tv-inner">
+    <div class="screen-bezel">
+      <div class="screen" id="screen">
+        <div id="player"></div>
+        <div class="offmsg" id="offmsg">— TV OFF —<br><span style="font-size:.8em; letter-spacing:1px;">power dabao, bachpan chalao</span></div>
+        <div class="glass"></div>
+        <div class="shield" aria-hidden="true"></div>
+        <canvas id="staticCanvas" width="240" height="180"></canvas>
+        <div class="crt-flash" id="crtFlash"></div>
+        <div class="osd" id="osd" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="speaker" aria-hidden="true"></div>
+      <div class="brandplate">BACHPAN&nbsp;TV</div>
+      <div class="ledrow"><span class="led" id="led"></span>POWER</div>
+
+      <div class="ctl">
+        <button class="powerbtn" id="btnPower" aria-label="Power on or off" aria-pressed="false">⏻</button>
+        <span class="lbl">POWER</span>
+      </div>
+
+      <div class="ctl">
+        <div class="rocker">
+          <button id="btnChDown" aria-label="Previous channel">−</button>
+          <button id="btnChUp" aria-label="Next channel">+</button>
+        </div>
+        <span class="lbl">CHANNEL</span>
+      </div>
+
+      <div class="ctl">
+        <div class="rocker">
+          <button id="btnVolDown" aria-label="Volume down">−</button>
+          <button id="btnVolUp" aria-label="Volume up">+</button>
+        </div>
+        <span class="lbl">VOLUME</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="guide" id="guide">
+  <b>CH 1</b> Shaka Laka Boom Boom &nbsp;·&nbsp; <b>CH 2</b> Shararat &nbsp;·&nbsp; <b>CH 3</b> Malgudi Days &nbsp;·&nbsp; <b>CH 4</b> Shaktimaan &nbsp;·&nbsp; <b>CH 5</b> Son Pari<br>
+  No pause. No episode list. Jo chal raha hai, wahi dekho — bilkul purane TV jaisa.
+</div>
+
+<footer>
+  All shows stream from their official YouTube channels (StarPlus Classics · Ultra Kids Zone · Ultra Bollywood) using YouTube's official embed player.
+  Nothing is hosted or copied here. Everyone who turns the TV on at the same time lands on the same episode at about the same point — like real TV.
+</footer>
+
+<script>
+/* ================= CHANNELS =================
+   slotSec  = the TV "schedule slot" per episode for this channel (median episode length, measured from the official playlists).
+   count    = episodes in the official playlist when the site was built (the live count is re-read from the player and corrects itself).
+   Live-sync idea: episode index + position are calculated from the clock, not from when YOU pressed power.
+*/
+/* rev:true = the official playlist itself is newest-episode-first (all StarPlus Classics playlists are),
+   so the schedule index is flipped and episodes still run Ep.1 -> Ep.2 -> Ep.3 ... in order. */
+const CHANNELS = [
+  { name:"Shaka Laka Boom Boom", hi:"शाका लाका बूम बूम", list:"PLOLR93k8trp8",               src:"StarPlus Classics", slotSec:1190, count:73,  rev:true },
+  { name:"Shararat",             hi:"शरारत",             list:"PLBrN5p7qfkNE",               src:"StarPlus Classics", slotSec:1230, count:125, rev:true },
+  { name:"Malgudi Days",         hi:"मालगुडी डेज़",       list:"PL_BnV0cOaQVrQ4mdkMDGp0pwl9QjRxMJY", src:"Ultra Bollywood", slotSec:1350, count:54  },
+  { name:"Shaktimaan",           hi:"शक्तिमान",           list:"PLJHHPzufWhur00gj5Fjy3ICyXijkcn6bb", src:"Ultra Kids Zone", slotSec:2500, count:276 },
+  { name:"Son Pari",             hi:"सोन परी",            list:"PLOtP07Q7xhyg",               src:"StarPlus Classics", slotSec:1160, count:81,  rev:true },
+];
+
+let player=null, playerReady=false, isOn=false, ch=0, vol=80, osdTimer=null, staticTimer=null, correcting=false;
+
+const $=id=>document.getElementById(id);
+const screen=$('screen'), osd=$('osd'), led=$('led'), btnPower=$('btnPower');
+
+/* ---------- live-sync math ---------- */
+function syncPos(c){
+  const now=Math.floor(Date.now()/1000);
+  const cycle=c.slotSec*c.count;
+  const pos=now%cycle;
+  const step=Math.floor(pos/c.slotSec);
+  return { index: c.rev ? (c.count-1-step) : step, offset:pos%c.slotSec };
+}
+
+/* ---------- static noise ---------- */
+const sCan=$('staticCanvas'), sCtx=sCan.getContext('2d');
+function showStatic(ms){
+  sCan.classList.add('show');
+  clearInterval(staticTimer);
+  staticTimer=setInterval(()=>{
+    const img=sCtx.createImageData(sCan.width,sCan.height), d=img.data;
+    for(let i=0;i<d.length;i+=4){ const v=Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+    sCtx.putImageData(img,0,0);
+  },50);
+  setTimeout(()=>{ clearInterval(staticTimer); sCan.classList.remove('show'); }, ms);
+}
+
+/* ---------- OSD ---------- */
+function showOSD(html, ms=2200){
+  osd.innerHTML=html; osd.classList.add('show');
+  clearTimeout(osdTimer); osdTimer=setTimeout(()=>osd.classList.remove('show'), ms);
+}
+function osdChannel(){ showOSD('CH '+(ch+1)+'<br><span style="font-size:.55em">'+CHANNELS[ch].hi+'</span>'); }
+function osdVolume(){
+  const blocks=Math.round(vol/10);
+  showOSD('VOLUME<br><span class="volbar">'+'▮'.repeat(blocks)+'▯'.repeat(10-blocks)+'</span>', 1400);
+}
+
+/* ---------- tuning ---------- */
+function tune(){
+  if(!playerReady) return;
+  const c=CHANNELS[ch], s=syncPos(c);
+  showStatic(850); osdChannel();
+  player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset, suggestedQuality:'default'});
+  player.setVolume(vol); player.unMute(); player.playVideo();
+  /* one self-correction: once YouTube tells us the real playlist length, re-sync if it changes the maths */
+  correcting=false;
+  setTimeout(()=>{
+    if(!isOn) return;
+    try{
+      const pl=player.getPlaylist();
+      if(pl && pl.length && pl.length!==c.count){
+        c.count=pl.length;
+        const s2=syncPos(c);
+        if(s2.index!==s.index){ player.loadPlaylist({list:c.list, listType:'playlist', index:s2.index, startSeconds:s2.offset}); player.setVolume(vol); }
+      }
+    }catch(e){}
+  }, 3500);
+}
+
+function power(on){
+  isOn=on;
+  screen.classList.toggle('on', on);
+  led.classList.toggle('on', on);
+  btnPower.classList.toggle('on', on);
+  btnPower.setAttribute('aria-pressed', String(on));
+  if(!playerReady) return;
+  if(on){
+    const f=$('crtFlash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+    tune();
+  }else{
+    try{ player.stopVideo(); }catch(e){}
+    osd.classList.remove('show');
+  }
+}
+
+btnPower.addEventListener('click', ()=>power(!isOn));
+$('btnChUp').addEventListener('click', ()=>{ if(!isOn){power(true); return;} ch=(ch+1)%CHANNELS.length; tune(); });
+$('btnChDown').addEventListener('click', ()=>{ if(!isOn){power(true); return;} ch=(ch-1+CHANNELS.length)%CHANNELS.length; tune(); });
+$('btnVolUp').addEventListener('click', ()=>{ if(!isOn) return; vol=Math.min(100,vol+10); if(playerReady){player.setVolume(vol); player.unMute();} osdVolume(); });
+$('btnVolDown').addEventListener('click', ()=>{ if(!isOn) return; vol=Math.max(0,vol-10); if(playerReady){player.setVolume(vol);} osdVolume(); });
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowUp'){ e.preventDefault(); $('btnChUp').click(); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); $('btnChDown').click(); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); $('btnVolUp').click(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); $('btnVolDown').click(); }
+  else if(e.key.toLowerCase()==='p'){ power(!isOn); }
+});
+
+/* ---------- YouTube IFrame API ---------- */
+const tag=document.createElement('script'); tag.src='https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+window.onYouTubeIframeAPIReady=function(){
+  player=new YT.Player('player',{
+    playerVars:{ controls:0, disablekb:1, fs:0, rel:0, modestbranding:1, iv_load_policy:3, playsinline:1 },
+    events:{
+      onReady(){ playerReady=true; player.setVolume(vol); },
+      onStateChange(e){
+        /* episode finished on its own -> jump back onto the live schedule for this channel */
+        if(e.data===YT.PlayerState.ENDED && isOn && !correcting){
+          correcting=true; tune(); setTimeout(()=>correcting=false, 4000);
+        }
+        /* if YouTube ever pauses (buffering stall etc.), a TV doesn't stay paused */
+        if(e.data===YT.PlayerState.PAUSED && isOn){ setTimeout(()=>{ if(isOn){ try{player.playVideo();}catch(_){}} }, 600); }
+      },
+      onError(){ /* a single episode is blocked/unavailable -> hop to the next one like a TV would lose a signal */
+        if(isOn){ try{ player.nextVideo(); }catch(_){ tune(); } }
+      }
+    }
+  });
+};
+</script>
+</body>
+</html>
