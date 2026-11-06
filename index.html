@@ -123,6 +123,8 @@
   .rocker button + button{border-left:1px solid #170d04;}
   .powerbtn{border-radius:50%; width:58px; height:58px; min-width:58px; font-size:21px; box-shadow:0 3px 0 #140a02, 0 5px 12px rgba(0,0,0,.6); padding:0;}
   .powerbtn.on{color:#ffb0a8;}
+  .powerbtn.pulse{animation:pwrPulse 1s ease-in-out infinite;}
+  @keyframes pwrPulse{0%,100%{box-shadow:0 3px 0 #140a02, 0 0 0 rgba(255,59,48,0);}50%{box-shadow:0 3px 0 #140a02, 0 0 26px rgba(255,59,48,.95);}}
   .guide{
     width:min(96vw,880px); text-align:center; font-size:clamp(12.5px,3vw,14.5px); line-height:1.65; opacity:.88; user-select:none;
   }
@@ -205,18 +207,35 @@ const CHANNELS = [
   { name:"Son Pari",             hi:"सोन परी",            list:"PLOtP07Q7xhyg",               src:"StarPlus Classics", slotSec:1160, count:81,  rev:true },
 ];
 
-let player=null, playerReady=false, isOn=false, ch=0, vol=80, osdTimer=null, staticTimer=null, correcting=false;
-
 const $=id=>document.getElementById(id);
 const screen=$('screen'), osd=$('osd'), led=$('led'), btnPower=$('btnPower');
 
+/* ================= v1.2 — ONE CHANNEL PER PAGE LOAD =================
+   Channel select and Power do a HARD PAGE REFRESH (?ch=N&on=1). A fresh page loads
+   exactly one playlist, exactly once. No in-page playlist switching ever happens —
+   that switching is what made every channel show the same show (Shararat) and stick. */
+const qs=new URLSearchParams(location.search);
+function clampCh(v){ v=parseInt(v,10); return (isNaN(v)||v<0||v>=CHANNELS.length)?0:v; }
+let ch=clampCh(qs.get('ch'));
+let wantOn = qs.get('on')==='1';
+let vol=parseInt(qs.get('v'),10); if(isNaN(vol)||vol<0||vol>100) vol=80;
+/* effective episode count for THIS channel: hard-coded, or corrected once via &n= (see tuneOnce) */
+let effCount=parseInt(qs.get('n'),10); if(isNaN(effCount)||effCount<5) effCount=CHANNELS[ch].count;
+
+let player=null, playerReady=false, isOn=false, osdTimer=null, staticTimer=null, soundBlocked=false, retuned=false;
+
+function navUrl(mut){ const u=new URL(location.href); mut(u.searchParams); return u.toString(); }
+function goOn(){ location.assign(navUrl(p=>{ p.set('ch',ch); p.set('on','1'); p.set('v',vol); p.delete('n'); })); }
+function goOff(){ location.assign(navUrl(p=>{ p.set('ch',ch); p.delete('on'); p.set('v',vol); p.delete('n'); })); }
+function goChannel(n){ location.assign(navUrl(p=>{ p.set('ch',n); p.set('on','1'); p.set('v',vol); p.delete('n'); })); }
+
 /* ---------- live-sync math ---------- */
-function syncPos(c){
+function syncPos(c, count){
   const now=Math.floor(Date.now()/1000);
-  const cycle=c.slotSec*c.count;
+  const cycle=c.slotSec*count;
   const pos=now%cycle;
   const step=Math.floor(pos/c.slotSec);
-  return { index: c.rev ? (c.count-1-step) : step, offset:pos%c.slotSec };
+  return { index: c.rev ? (count-1-step) : step, offset:pos%c.slotSec };
 }
 
 /* ---------- static noise ---------- */
@@ -243,57 +262,81 @@ function osdVolume(){
   showOSD('VOLUME<br><span class="volbar">'+'▮'.repeat(blocks)+'▯'.repeat(10-blocks)+'</span>', 1400);
 }
 
-/* ---------- tuning ---------- */
-function tune(){
-  if(!playerReady) return;
-  const c=CHANNELS[ch], s=syncPos(c);
+/* ---------- tuning: runs ONCE per page load, for THIS page's channel only ---------- */
+function tuneOnce(){
+  if(!playerReady || !isOn) return;
+  const c=CHANNELS[ch], s=syncPos(c, effCount);
   showStatic(850); osdChannel();
   player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset, suggestedQuality:'default'});
   player.setVolume(vol); player.unMute(); player.playVideo();
-  /* one self-correction: once YouTube tells us the real playlist length, re-sync if it changes the maths */
-  correcting=false;
+  /* if the browser blocked sound after the refresh, one tap anywhere fixes it */
   setTimeout(()=>{
     if(!isOn) return;
+    let st=-1; try{ st=player.getPlayerState(); }catch(e){}
+    if(st!==1 && st!==3){ /* not playing, not buffering */
+      soundBlocked=true; btnPower.classList.add('pulse');
+      showOSD('TAP POWER<br><span style="font-size:.5em">sound ke liye ek tap</span>', 6000);
+    }
+  }, 3000);
+  /* one guarded self-correction: if the real playlist length differs from the built-in
+     count, hard-refresh ONE time with &n=<real length> so the schedule maths is exact.
+     The presence of &n= in the URL stops any refresh loop. */
+  setTimeout(()=>{
+    if(!isOn || qs.has('n')) return;
     try{
       const pl=player.getPlaylist();
-      if(pl && pl.length && pl.length!==c.count){
-        c.count=pl.length;
-        const s2=syncPos(c);
-        if(s2.index!==s.index){ player.loadPlaylist({list:c.list, listType:'playlist', index:s2.index, startSeconds:s2.offset}); player.setVolume(vol); }
+      if(pl && pl.length && pl.length!==effCount){
+        location.assign(navUrl(p=>{ p.set('n', pl.length); }));
       }
     }catch(e){}
-  }, 3500);
+  }, 4500);
 }
 
-function power(on){
-  isOn=on;
-  screen.classList.toggle('on', on);
-  led.classList.toggle('on', on);
-  btnPower.classList.toggle('on', on);
-  btnPower.setAttribute('aria-pressed', String(on));
+function tryStart(){ /* the one tap after a refresh: sound on, playing */
   if(!playerReady) return;
-  if(on){
-    const f=$('crtFlash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-    tune();
-  }else{
-    try{ player.stopVideo(); }catch(e){}
-    osd.classList.remove('show');
-  }
+  soundBlocked=false; btnPower.classList.remove('pulse');
+  try{ player.unMute(); player.setVolume(vol); player.playVideo(); }catch(e){}
+  osdChannel();
+}
+document.addEventListener('pointerdown', ()=>{ if(isOn && soundBlocked) tryStart(); });
+
+function setOnVisuals(){
+  screen.classList.toggle('on', isOn);
+  led.classList.toggle('on', isOn);
+  btnPower.classList.toggle('on', isOn);
+  btnPower.setAttribute('aria-pressed', String(isOn));
 }
 
-btnPower.addEventListener('click', ()=>power(!isOn));
-$('btnChUp').addEventListener('click', ()=>{ if(!isOn){power(true); return;} ch=(ch+1)%CHANNELS.length; tune(); });
-$('btnChDown').addEventListener('click', ()=>{ if(!isOn){power(true); return;} ch=(ch-1+CHANNELS.length)%CHANNELS.length; tune(); });
-$('btnVolUp').addEventListener('click', ()=>{ if(!isOn) return; vol=Math.min(100,vol+10); if(playerReady){player.setVolume(vol); player.unMute();} osdVolume(); });
-$('btnVolDown').addEventListener('click', ()=>{ if(!isOn) return; vol=Math.max(0,vol-10); if(playerReady){player.setVolume(vol);} osdVolume(); });
+btnPower.addEventListener('click', ()=>{
+  if(!wantOn){ goOn(); return; }          /* OFF page -> hard refresh into ON */
+  if(soundBlocked){ tryStart(); return; }  /* refreshed but sound blocked -> this tap is the sound tap */
+  goOff();                                 /* playing -> hard refresh into OFF */
+});
+$('btnChUp').addEventListener('click', ()=>goChannel((ch+1)%CHANNELS.length));
+$('btnChDown').addEventListener('click', ()=>goChannel((ch-1+CHANNELS.length)%CHANNELS.length));
+function setVol(v){
+  vol=Math.max(0, Math.min(100, v));
+  if(playerReady && isOn){ try{ player.setVolume(vol); if(vol>0) player.unMute(); }catch(e){} }
+  history.replaceState(null,'',navUrl(p=>p.set('v',vol))); /* volume survives the next channel refresh */
+  osdVolume();
+}
+$('btnVolUp').addEventListener('click', ()=>{ if(wantOn) setVol(vol+10); });
+$('btnVolDown').addEventListener('click', ()=>{ if(wantOn) setVol(vol-10); });
 
 document.addEventListener('keydown', e=>{
   if(e.key==='ArrowUp'){ e.preventDefault(); $('btnChUp').click(); }
   else if(e.key==='ArrowDown'){ e.preventDefault(); $('btnChDown').click(); }
   else if(e.key==='ArrowRight'){ e.preventDefault(); $('btnVolUp').click(); }
   else if(e.key==='ArrowLeft'){ e.preventDefault(); $('btnVolDown').click(); }
-  else if(e.key.toLowerCase()==='p'){ power(!isOn); }
+  else if(e.key.toLowerCase()==='p'){ btnPower.click(); }
 });
+
+/* page arrived already switched ON (after a power/channel refresh): light the TV up now */
+if(wantOn){
+  isOn=true; setOnVisuals();
+  const f=$('crtFlash'); f.classList.add('go');
+  showStatic(1200); osdChannel();
+}
 
 /* ---------- YouTube IFrame API ---------- */
 const tag=document.createElement('script'); tag.src='https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
@@ -301,17 +344,20 @@ window.onYouTubeIframeAPIReady=function(){
   player=new YT.Player('player',{
     playerVars:{ controls:0, disablekb:1, fs:0, rel:0, modestbranding:1, iv_load_policy:3, playsinline:1 },
     events:{
-      onReady(){ playerReady=true; player.setVolume(vol); },
+      onReady(){ playerReady=true; player.setVolume(vol); if(isOn) tuneOnce(); },
       onStateChange(e){
-        /* episode finished on its own -> jump back onto the live schedule for this channel */
-        if(e.data===YT.PlayerState.ENDED && isOn && !correcting){
-          correcting=true; tune(); setTimeout(()=>correcting=false, 4000);
+        /* episode finished on its own -> re-sync to the live schedule, SAME channel, same playlist */
+        if(e.data===YT.PlayerState.ENDED && isOn && !retuned){
+          retuned=true; setTimeout(()=>retuned=false, 5000);
+          const c=CHANNELS[ch], s=syncPos(c, effCount);
+          showStatic(600);
+          try{ player.loadPlaylist({list:c.list, listType:'playlist', index:s.index, startSeconds:s.offset}); player.setVolume(vol); player.playVideo(); }catch(_){}
         }
         /* if YouTube ever pauses (buffering stall etc.), a TV doesn't stay paused */
-        if(e.data===YT.PlayerState.PAUSED && isOn){ setTimeout(()=>{ if(isOn){ try{player.playVideo();}catch(_){}} }, 600); }
+        if(e.data===YT.PlayerState.PAUSED && isOn && !soundBlocked){ setTimeout(()=>{ if(isOn && !soundBlocked){ try{player.playVideo();}catch(_){}} }, 600); }
       },
       onError(){ /* a single episode is blocked/unavailable -> hop to the next one like a TV would lose a signal */
-        if(isOn){ try{ player.nextVideo(); }catch(_){ tune(); } }
+        if(isOn){ try{ player.nextVideo(); }catch(_){ } }
       }
     }
   });
