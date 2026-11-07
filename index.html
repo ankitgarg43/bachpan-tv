@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bachpan TV — Purane Shows, Live TV Style | Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan, Son Pari</title>
-<meta name="description" content="An old-style CRT TV on the web. Turn it on and classic Indian shows play live, channel by channel: Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan and Son Pari — streamed from official YouTube channels. No login, no episodes to pick. Just power, channel and volume.">
+<title>Bachpan TV — Purane Shows, Live TV Style | Shaka Laka Boom Boom, Shararat, Hum Paanch, Shaktimaan, Son Pari</title>
+<meta name="description" content="An old-style CRT TV on the web. Turn it on and classic Indian shows play live, channel by channel: Shaka Laka Boom Boom, Shararat, Hum Paanch, Shaktimaan and Son Pari — streamed from official YouTube channels. No login, no episodes to pick. Just power, channel and volume.">
 <link rel="canonical" href="https://ankitgarg43.github.io/bachpan-tv/">
 <meta name="theme-color" content="#17100b">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Bachpan TV — Purane Shows, Live TV Style">
-<meta property="og:description" content="Turn on the TV. Flip the channel. Shaka Laka Boom Boom, Shararat, Malgudi Days, Shaktimaan, Son Pari — playing live, like the old days.">
+<meta property="og:description" content="Turn on the TV. Flip the channel. Shaka Laka Boom Boom, Shararat, Hum Paanch, Shaktimaan, Son Pari — playing live, like the old days.">
 <meta property="og:url" content="https://ankitgarg43.github.io/bachpan-tv/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Bachpan TV — Purane Shows, Live TV Style">
@@ -182,7 +182,7 @@
 </div>
 
 <div class="guide" id="guide">
-  <b>CH 1</b> Shaka Laka Boom Boom &nbsp;·&nbsp; <b>CH 2</b> Shararat &nbsp;·&nbsp; <b>CH 3</b> Malgudi Days &nbsp;·&nbsp; <b>CH 4</b> Shaktimaan &nbsp;·&nbsp; <b>CH 5</b> Son Pari<br>
+  <b>CH 1</b> Shaka Laka Boom Boom &nbsp;·&nbsp; <b>CH 2</b> Shararat &nbsp;·&nbsp; <b>CH 3</b> Hum Paanch &nbsp;·&nbsp; <b>CH 4</b> Shaktimaan &nbsp;·&nbsp; <b>CH 5</b> Son Pari<br>
   No pause. No episode list. Jo chal raha hai, wahi dekho — bilkul purane TV jaisa.
 </div>
 
@@ -200,11 +200,11 @@
 /* rev:true = the official playlist itself is newest-episode-first (all StarPlus Classics playlists are),
    so the schedule index is flipped and episodes still run Ep.1 -> Ep.2 -> Ep.3 ... in order. */
 const CHANNELS = [
-  { name:"Shaka Laka Boom Boom", hi:"शाका लाका बूम बूम", list:"PLOLR93k8trp8",               src:"StarPlus Classics", slotSec:1190, count:73,  rev:true },
-  { name:"Shararat",             hi:"शरारत",             list:"PLBrN5p7qfkNE",               src:"StarPlus Classics", slotSec:1230, count:125, rev:true },
-  { name:"Malgudi Days",         hi:"मालगुडी डेज़",       list:"PL_BnV0cOaQVrQ4mdkMDGp0pwl9QjRxMJY", src:"Ultra Bollywood", slotSec:1350, count:54  },
-  { name:"Shaktimaan",           hi:"शक्तिमान",           list:"PLJHHPzufWhur00gj5Fjy3ICyXijkcn6bb", src:"Ultra Kids Zone", slotSec:2500, count:276 },
-  { name:"Son Pari",             hi:"सोन परी",            list:"PLOtP07Q7xhyg",               src:"StarPlus Classics", slotSec:1160, count:81,  rev:true },
+  { name:"Shaka Laka Boom Boom", hi:"शाका लाका बूम बूम", list:"PLOLR93k8trp8",               src:"StarPlus Classics", slotSec:1190, count:78,  rev:true },
+  { name:"Shararat",             hi:"शरारत",             list:"PLBrN5p7qfkNE",               src:"StarPlus Classics", slotSec:1230, count:134, rev:true },
+  { name:"Hum Paanch",           hi:"हम पाँच",            list:"PLEtF4Mn_IXmIeRoF3mkCuf7iZzOe6iSDl", src:"BIG Magic",         slotSec:1300, count:72  },
+  { name:"Shaktimaan",           hi:"शक्तिमान",           list:"PLJHHPzufWhur00gj5Fjy3ICyXijkcn6bb", src:"Ultra Kids Zone", slotSec:2500, count:200 },
+  { name:"Son Pari",             hi:"सोन परी",            list:"PLOtP07Q7xhyg",               src:"StarPlus Classics", slotSec:1160, count:90,  rev:true },
 ];
 
 const $=id=>document.getElementById(id);
@@ -263,6 +263,10 @@ function osdVolume(){
 }
 
 
+/* ---------- v1.4: CH3 = Hum Paanch (BIG Magic) — Malgudi Days Hindi uploads have embedding
+   disabled by the rights holder on every YouTube set, so CH3 was replaced at the owner's
+   pick (Nov 6, 2026). Counts for CH1/2/4/5 baked to the real playlist lengths the v1.2
+   self-correction measured live (78/134/200/90), so no correction refresh is needed. ----------
 /* ---------- v1.3: slot-boundary re-tune ----------
    YouTube advances a playlist in its RAW order. For the newest-first StarPlus
    lists that means episodes drift BACKWARD after each episode ends, and for all
