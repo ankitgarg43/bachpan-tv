@@ -3,7 +3,7 @@
 An old-style CRT TV on the web. Turn it on — classic Indian shows are already playing, live-TV style.
 Flip the channel to change the show. That's it.
 
-**Only 3 controls exist: Power · Channel +/− · Volume +/−.** No pause, no play, no episode list, no login.
+**Only 5 controls exist: Power · Channel +/− · Volume +/−.** No pause, no play, no episode list, no login.
 
 Live site (after the GitHub push): https://ankitgarg43.github.io/bachpan-tv/
 
